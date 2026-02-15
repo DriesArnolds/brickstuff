@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import ssl
 import sys
 from typing import Any
 import urllib.parse
@@ -23,12 +24,25 @@ def build_url(path: str, params: dict[str, str]) -> str:
     return url
 
 
+def _skip_ssl_verify_enabled() -> bool:
+    return os.environ.get("REBRICKABLE_SKIP_SSL_VERIFY", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
 def fetch_json(url: str, api_key: str) -> dict[str, Any]:
     request = urllib.request.Request(
         url,
         headers={"Authorization": f"key {api_key}", "Accept": "application/json"},
     )
-    with urllib.request.urlopen(request) as response:
+
+    ssl_context = None
+    if _skip_ssl_verify_enabled():
+        ssl_context = ssl._create_unverified_context()
+
+    with urllib.request.urlopen(request, context=ssl_context) as response:
         payload = response.read()
         return json.loads(payload)
 
@@ -52,6 +66,14 @@ def fetch_path(
 ) -> dict[str, Any]:
     url = build_url(path, params)
     return fetch_json(url, api_key)
+
+
+def ssl_fix_hint() -> str:
+    return (
+        "SSL certificate verification failed. On macOS, run the 'Install Certificates.command' "
+        "that ships with your Python install (or use a Python from Homebrew). "
+        "Temporary workaround: set REBRICKABLE_SKIP_SSL_VERIFY=1."
+    )
 
 
 def main() -> int:
@@ -95,6 +117,9 @@ def main() -> int:
         detail = exc.read().decode("utf-8")
         print(f"HTTP error {exc.code}: {detail}", file=sys.stderr)
         return 3
+    except ssl.SSLCertVerificationError:
+        print(ssl_fix_hint(), file=sys.stderr)
+        return 5
     except urllib.error.URLError as exc:
         print(f"Network error: {exc.reason}", file=sys.stderr)
         return 4

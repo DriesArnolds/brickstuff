@@ -62,3 +62,36 @@ From Terminal:
 5. If using the web app, open `http://localhost:8000` in your browser.
 
 Tip: to persist the key, add the `export REBRICKABLE_API_KEY=...` line to `~/.zshrc` (default macOS shell).
+
+## Troubleshooting SSL certificate errors on macOS
+
+If you see an error like:
+
+```text
+CERTIFICATE_VERIFY_FAILED
+```
+
+your Python install may not have the macOS certificate bundle configured.
+
+### Recommended fix
+
+Run the certificate installer script that ships with Python.org builds:
+
+```bash
+open "/Applications/Python 3.10/Install Certificates.command"
+```
+
+(Adjust `3.10` to your installed Python version.)
+
+Then restart your terminal and run the app again.
+
+### Temporary workaround (not recommended for long-term use)
+
+You can bypass SSL verification for this script only:
+
+```bash
+export REBRICKABLE_SKIP_SSL_VERIFY=1
+python3 web_app.py
+```
+
+Use this only as a short-term workaround.

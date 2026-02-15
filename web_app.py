@@ -9,7 +9,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from fetch_rebrickable import fetch_path
+from fetch_rebrickable import fetch_path, ssl_fix_hint
 
 
 HTML_PAGE = """<!doctype html>
@@ -121,9 +121,12 @@ class RebrickableHandler(BaseHTTPRequestHandler):
                     )
                     content = f"<pre>{formatted}</pre>"
                 except Exception as exc:  # pragma: no cover - basic handler
+                    detail = str(exc)
+                    if "CERTIFICATE_VERIFY_FAILED" in detail:
+                        detail = ssl_fix_hint()
                     content = (
                         "<p class=\"error\">"
-                        f"Failed to fetch data: {html.escape(str(exc))}"
+                        f"Failed to fetch data: {html.escape(detail)}"
                         "</p>"
                     )
 
