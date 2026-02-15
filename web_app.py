@@ -161,7 +161,7 @@ def _external_url(source: str, ext_id: str) -> str | None:
     if source_key == "brickowl":
         return f"https://www.brickowl.com/catalog/lego-part-{ext_id}"
     if source_key == "lego":
-        return f"https://www.lego.com/en-us/pick-and-build/pick-a-brick?query={ext_id}"
+        return f"https://www.lego.com/nl-nl/pick-and-build/pick-a-brick?query={ext_id}"
     if source_key == "ldraw":
         return f"https://library.ldraw.org/library/unofficial/{ext_id}.dat"
     if source_key == "brickset":
