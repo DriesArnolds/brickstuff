@@ -85,12 +85,12 @@ HTML_PAGE = """<!doctype html>
           type="text"
           name="part_num"
           placeholder="e.g. 3001"
-          value="{part_value}"
+          value="__PART_VALUE__"
           required
         />
         <button type="submit">Look up part</button>
       </form>
-      {content}
+      __CONTENT__
     </div>
   </body>
 </html>
@@ -127,9 +127,9 @@ class RebrickableHandler(BaseHTTPRequestHandler):
                         "</p>"
                     )
 
-        page = HTML_PAGE.format(
-            part_value=html.escape(part_num),
-            content=content,
+        page = (
+            HTML_PAGE.replace("__PART_VALUE__", html.escape(part_num))
+            .replace("__CONTENT__", content)
         )
         encoded = page.encode("utf-8")
 
