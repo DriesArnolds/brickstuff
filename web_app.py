@@ -9,6 +9,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from config_utils import load_env_file
 from fetch_rebrickable import fetch_path, ssl_fix_hint
 
 
@@ -97,6 +98,9 @@ HTML_PAGE = """<!doctype html>
 """
 
 
+ENV_FILE = os.environ.get("REBRICKABLE_ENV_FILE", ".env")
+
+
 class RebrickableHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
         parsed = urlparse(self.path)
@@ -105,6 +109,7 @@ class RebrickableHandler(BaseHTTPRequestHandler):
 
         content = ""
         if part_num:
+            load_env_file(ENV_FILE)
             api_key = os.environ.get("REBRICKABLE_API_KEY")
             if not api_key:
                 content = "<p class=\"error\">REBRICKABLE_API_KEY is not set.</p>"
@@ -156,4 +161,5 @@ def run_server(host: str, port: int) -> None:
 
 
 if __name__ == "__main__":
+    load_env_file(ENV_FILE)
     run_server("0.0.0.0", 8000)

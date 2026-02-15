@@ -33,6 +33,27 @@ python3 web_app.py
 
 Then visit `http://localhost:8000` and enter a part number.
 
+
+### Use a local config file (.env)
+
+Yes. You can place these values in a `.env` file in the project root so you can run `python3 web_app.py` directly.
+
+1. Create a `.env` file from the example:
+   ```bash
+   cp .env.example .env
+   ```
+2. Edit `.env` and set your values:
+   ```text
+   REBRICKABLE_API_KEY='your_rebrickable_api_key'
+   REBRICKABLE_SKIP_SSL_VERIFY=0
+   ```
+3. Run the app:
+   ```bash
+   python3 web_app.py
+   ```
+
+The app and CLI now auto-load `.env` (without overriding variables already exported in your shell).
+
 ## Running locally on macOS
 
 From Terminal:

@@ -12,6 +12,8 @@ from typing import Any
 import urllib.parse
 import urllib.request
 
+from config_utils import load_env_file
+
 BASE_URL = "https://rebrickable.com/api/v3"
 
 
@@ -99,6 +101,8 @@ def main() -> int:
         help="Optional path to save JSON output.",
     )
     args = parser.parse_args()
+
+    load_env_file(os.environ.get("REBRICKABLE_ENV_FILE", ".env"))
 
     api_key = os.environ.get("REBRICKABLE_API_KEY")
     if not api_key:
