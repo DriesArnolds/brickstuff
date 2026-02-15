@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import html
+import json
 import os
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from config_utils import load_env_file
@@ -27,7 +29,7 @@ HTML_PAGE = """<!doctype html>
         color: #1f2933;
       }
       .container {
-        max-width: 760px;
+        max-width: 880px;
         margin: 0 auto;
         background: white;
         padding: 2rem;
@@ -66,6 +68,33 @@ HTML_PAGE = """<!doctype html>
         margin-bottom: 1rem;
         color: #52616b;
       }
+      .result-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+        border: 1px solid #d9e2ec;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .result-table th,
+      .result-table td {
+        padding: 0.7rem 0.8rem;
+        text-align: left;
+        border-bottom: 1px solid #d9e2ec;
+        vertical-align: top;
+      }
+      .result-table th {
+        width: 220px;
+        background: #f0f4f8;
+        color: #334e68;
+      }
+      .result-table tr:last-child th,
+      .result-table tr:last-child td {
+        border-bottom: none;
+      }
+      details {
+        margin-top: 1rem;
+      }
       pre {
         background: #f0f4f8;
         padding: 1rem;
@@ -101,6 +130,55 @@ HTML_PAGE = """<!doctype html>
 ENV_FILE = os.environ.get("REBRICKABLE_ENV_FILE", ".env")
 
 
+def _fmt(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(item) for item in value)
+    if isinstance(value, dict):
+        return json.dumps(value, sort_keys=True)
+    return str(value)
+
+
+def render_part_table(part: dict[str, Any]) -> str:
+    rows: list[tuple[str, str]] = [
+        ("Part Number", _fmt(part.get("part_num"))),
+        ("Name", _fmt(part.get("name"))),
+        ("Category", _fmt((part.get("part_cat") or {}).get("name"))),
+        ("Part URL", _fmt(part.get("part_url"))),
+        ("Print of", _fmt(part.get("print_of"))),
+        ("Part Material", _fmt(part.get("part_material"))),
+        ("Year From", _fmt(part.get("year_from"))),
+        ("Year To", _fmt(part.get("year_to"))),
+    ]
+
+    external_ids = part.get("external_ids")
+    if isinstance(external_ids, dict) and external_ids:
+        rows.append(("External IDs", _fmt(external_ids)))
+
+    table_rows = "".join(
+        "<tr>"
+        f"<th>{html.escape(label)}</th>"
+        f"<td>{html.escape(value)}</td>"
+        "</tr>"
+        for label, value in rows
+        if value
+    )
+
+    raw_json = html.escape(json.dumps(part, indent=2, sort_keys=True), quote=False)
+    return (
+        '<h2 style="margin-bottom:0.4rem;">Part details</h2>'
+        '<table class="result-table">'
+        f"{table_rows}"
+        "</table>"
+        "<details><summary>Show raw JSON</summary>"
+        f"<pre>{raw_json}</pre>"
+        "</details>"
+    )
+
+
 class RebrickableHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
         parsed = urlparse(self.path)
@@ -120,11 +198,7 @@ class RebrickableHandler(BaseHTTPRequestHandler):
                         {},
                         api_key,
                     )
-                    formatted = html.escape(
-                        json_dumps(data),
-                        quote=False,
-                    )
-                    content = f"<pre>{formatted}</pre>"
+                    content = render_part_table(data)
                 except Exception as exc:  # pragma: no cover - basic handler
                     detail = str(exc)
                     if "CERTIFICATE_VERIFY_FAILED" in detail:
@@ -146,12 +220,6 @@ class RebrickableHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
         self.wfile.write(encoded)
-
-
-def json_dumps(payload: object) -> str:
-    import json
-
-    return json.dumps(payload, indent=2, sort_keys=True)
 
 
 def run_server(host: str, port: int) -> None:

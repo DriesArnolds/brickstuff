@@ -31,7 +31,7 @@ export REBRICKABLE_API_KEY='your_rebrickable_api_key'
 python3 web_app.py
 ```
 
-Then visit `http://localhost:8000` and enter a part number.
+Then visit `http://localhost:8000` and enter a part number. Results are shown in a formatted HTML table with an expandable raw JSON section.
 
 
 ### Use a local config file (.env)
