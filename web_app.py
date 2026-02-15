@@ -168,12 +168,25 @@ def render_part_table(part: dict[str, Any]) -> str:
         if value
     )
 
+    part_img_url = _fmt(part.get("part_img_url"))
+    image_html = ""
+    if part_img_url:
+        safe_img_url = html.escape(part_img_url, quote=True)
+        image_html = (
+            '<div style="margin-top:1rem;">'
+            '<h3 style="margin-bottom:0.5rem;">Part image</h3>'
+            f'<img src="{safe_img_url}" alt="Part image for {html.escape(_fmt(part.get("part_num")))}" '
+            'style="max-width:100%; height:auto; border:1px solid #d9e2ec; border-radius:8px;" />'
+            "</div>"
+        )
+
     raw_json = html.escape(json.dumps(part, indent=2, sort_keys=True), quote=False)
     return (
         '<h2 style="margin-bottom:0.4rem;">Part details</h2>'
         '<table class="result-table">'
         f"{table_rows}"
         "</table>"
+        f"{image_html}"
         "<details><summary>Show raw JSON</summary>"
         f"<pre>{raw_json}</pre>"
         "</details>"
