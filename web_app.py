@@ -143,28 +143,74 @@ def _fmt(value: Any) -> str:
     return str(value)
 
 
+
+
+def _safe_link(url: str, label: str) -> str:
+    safe_url = html.escape(url, quote=True)
+    safe_label = html.escape(label)
+    return (
+        f'<a href="{safe_url}" target="_blank" rel="noopener noreferrer">'
+        f"{safe_label}</a>"
+    )
+
+
+def _external_url(source: str, ext_id: str) -> str | None:
+    source_key = source.strip().lower()
+    if source_key == "bricklink":
+        return f"https://www.bricklink.com/v2/catalog/catalogitem.page?P={ext_id}"
+    if source_key == "brickowl":
+        return f"https://www.brickowl.com/catalog/lego-part-{ext_id}"
+    if source_key == "lego":
+        return f"https://www.lego.com/en-us/pick-and-build/pick-a-brick?query={ext_id}"
+    if source_key == "ldraw":
+        return f"https://library.ldraw.org/library/unofficial/{ext_id}.dat"
+    return None
+
+
+def _render_external_ids_html(external_ids: dict[str, Any]) -> str:
+    chunks: list[str] = []
+    for source, raw_ids in external_ids.items():
+        ids = raw_ids if isinstance(raw_ids, list) else [raw_ids]
+        links: list[str] = []
+        for item in ids:
+            id_text = str(item)
+            url = _external_url(source, id_text)
+            if url:
+                links.append(_safe_link(url, id_text))
+            else:
+                links.append(html.escape(id_text))
+
+        if links:
+            safe_source = html.escape(str(source))
+            chunks.append(f"<div><strong>{safe_source}:</strong> {', '.join(links)}</div>")
+
+    return "".join(chunks)
+
 def render_part_table(part: dict[str, Any]) -> str:
-    rows: list[tuple[str, str]] = [
-        ("Part Number", _fmt(part.get("part_num"))),
-        ("Name", _fmt(part.get("name"))),
-        ("Category", _fmt((part.get("part_cat") or {}).get("name"))),
-        ("Part URL", _fmt(part.get("part_url"))),
-        ("Print of", _fmt(part.get("print_of"))),
-        ("Part Material", _fmt(part.get("part_material"))),
-        ("Year From", _fmt(part.get("year_from"))),
-        ("Year To", _fmt(part.get("year_to"))),
+    part_url = _fmt(part.get("part_url"))
+    part_url_html = _safe_link(part_url, part_url) if part_url else ""
+
+    rows: list[tuple[str, str, bool]] = [
+        ("Part Number", _fmt(part.get("part_num")), False),
+        ("Name", _fmt(part.get("name")), False),
+        ("Category", _fmt((part.get("part_cat") or {}).get("name")), False),
+        ("Part URL", part_url_html, True),
+        ("Print of", _fmt(part.get("print_of")), False),
+        ("Part Material", _fmt(part.get("part_material")), False),
+        ("Year From", _fmt(part.get("year_from")), False),
+        ("Year To", _fmt(part.get("year_to")), False),
     ]
 
     external_ids = part.get("external_ids")
     if isinstance(external_ids, dict) and external_ids:
-        rows.append(("External IDs", _fmt(external_ids)))
+        rows.append(("External IDs", _render_external_ids_html(external_ids), True))
 
     table_rows = "".join(
         "<tr>"
         f"<th>{html.escape(label)}</th>"
-        f"<td>{html.escape(value)}</td>"
+        f"<td>{value if is_html else html.escape(value)}</td>"
         "</tr>"
-        for label, value in rows
+        for label, value, is_html in rows
         if value
     )
 
