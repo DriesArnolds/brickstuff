@@ -15,6 +15,10 @@ from config_utils import load_env_file
 from fetch_rebrickable import fetch_path, ssl_fix_hint
 
 
+PART_VALUE_TOKEN = "__PART_VALUE__"
+CONTENT_TOKEN = "__CONTENT__"
+ENV_FILE = os.environ.get("REBRICKABLE_ENV_FILE", ".env")
+
 HTML_PAGE = """<!doctype html>
 <html lang="en">
   <head>
@@ -127,9 +131,6 @@ HTML_PAGE = """<!doctype html>
 """
 
 
-ENV_FILE = os.environ.get("REBRICKABLE_ENV_FILE", ".env")
-
-
 def _fmt(value: Any) -> str:
     if value is None:
         return ""
@@ -179,6 +180,14 @@ def render_part_table(part: dict[str, Any]) -> str:
     )
 
 
+def render_page(part_num: str, content: str) -> str:
+    """Render the HTML page without calling str.format on CSS braces."""
+    return (
+        HTML_PAGE.replace(PART_VALUE_TOKEN, html.escape(part_num))
+        .replace(CONTENT_TOKEN, content)
+    )
+
+
 class RebrickableHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
         parsed = urlparse(self.path)
@@ -209,10 +218,7 @@ class RebrickableHandler(BaseHTTPRequestHandler):
                         "</p>"
                     )
 
-        page = (
-            HTML_PAGE.replace("__PART_VALUE__", html.escape(part_num))
-            .replace("__CONTENT__", content)
-        )
+        page = render_page(part_num, content)
         encoded = page.encode("utf-8")
 
         self.send_response(HTTPStatus.OK)

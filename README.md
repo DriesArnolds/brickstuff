@@ -116,3 +116,13 @@ python3 web_app.py
 ```
 
 Use this only as a short-term workaround.
+
+
+### If you still see `KeyError: '\n        font-family'`
+
+That traceback indicates an older `web_app.py` that used `HTML_PAGE.format(...)` with CSS braces.
+
+- Pull the latest version of this repo and restart the server.
+- Confirm your local file does **not** contain `HTML_PAGE.format(`.
+- The current version uses token replacement via `render_page(...)`, which avoids CSS brace formatting errors.
+
