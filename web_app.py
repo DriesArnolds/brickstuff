@@ -189,6 +189,18 @@ def _color_field(color_entry: dict[str, Any], field: str) -> str:
 
     return ""
 
+
+
+def _normalize_rgb(value: str) -> str:
+    rgb = value.strip().lstrip("#")
+    if len(rgb) == 3:
+        rgb = "".join(ch * 2 for ch in rgb)
+    if len(rgb) != 6:
+        return ""
+    if any(ch not in "0123456789abcdefABCDEF" for ch in rgb):
+        return ""
+    return rgb.upper()
+
 def _safe_link(url: str, label: str) -> str:
     safe_url = html.escape(url, quote=True)
     safe_label = html.escape(label)
@@ -327,16 +339,19 @@ def render_colors_table(part: dict[str, Any], colors_payload: dict[str, Any]) ->
             color_url = f"{part_url}/{color_id}/"
             color_name_html = _safe_link(color_url, color_name)
 
+        normalized_rgb = _normalize_rgb(rgb)
         swatch = ""
-        if rgb:
-            safe_rgb = html.escape(rgb, quote=True)
+        rgb_text = html.escape(rgb)
+        if normalized_rgb:
+            safe_rgb = html.escape(normalized_rgb, quote=True)
             swatch = f'<span class="color-swatch" style="background-color: #{safe_rgb};"></span>'
+            rgb_text = f"{swatch}#{html.escape(normalized_rgb)}"
 
         rows.append(
             "<tr>"
             f"<td>{html.escape(color_id)}</td>"
-            f"<td>{swatch}{color_name_html}</td>"
-            f"<td>{html.escape(rgb)}</td>"
+            f"<td>{color_name_html}</td>"
+            f"<td>{rgb_text}</td>"
             f"<td>{html.escape(num_sets)}</td>"
             f"<td>{html.escape(num_parts)}</td>"
             "</tr>"
