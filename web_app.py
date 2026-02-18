@@ -108,6 +108,15 @@ HTML_PAGE = """<!doctype html>
       .error {
         color: #b42318;
       }
+      .color-swatch {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border: 1px solid #9aa5b1;
+        border-radius: 4px;
+        vertical-align: middle;
+        margin-right: 0.5rem;
+      }
     </style>
   </head>
   <body>
@@ -161,7 +170,7 @@ def _external_url(source: str, ext_id: str) -> str | None:
     if source_key == "brickowl":
         return f"https://www.brickowl.com/catalog/lego-part-{ext_id}"
     if source_key == "lego":
-        return f"https://www.lego.com/nl-nl/pick-and-build/pick-a-brick?query={ext_id}"
+        return f"https://www.lego.com/en-us/pick-and-build/pick-a-brick?query={ext_id}"
     if source_key == "ldraw":
         return f"https://library.ldraw.org/library/unofficial/{ext_id}.dat"
     if source_key == "brickset":
@@ -188,7 +197,7 @@ def _render_external_ids_html(external_ids: dict[str, Any]) -> str:
 
     return "".join(chunks)
 
-def render_part_table(part: dict[str, Any]) -> str:
+def render_part_table(part: dict[str, Any], colors_payload: dict[str, Any] | None = None) -> str:
     part_url = _fmt(part.get("part_url"))
     part_url_html = _safe_link(part_url, part_url) if part_url else ""
 
@@ -228,6 +237,8 @@ def render_part_table(part: dict[str, Any]) -> str:
             "</div>"
         )
 
+    colors_html = render_colors_table(colors_payload) if colors_payload else ""
+
     raw_json = html.escape(json.dumps(part, indent=2, sort_keys=True), quote=False)
     return (
         '<h2 style="margin-bottom:0.4rem;">Part details</h2>'
@@ -235,9 +246,55 @@ def render_part_table(part: dict[str, Any]) -> str:
         f"{table_rows}"
         "</table>"
         f"{image_html}"
+        f"{colors_html}"
         "<details><summary>Show raw JSON</summary>"
         f"<pre>{raw_json}</pre>"
         "</details>"
+    )
+
+
+
+
+def render_colors_table(colors_payload: dict[str, Any]) -> str:
+    results = colors_payload.get("results")
+    if not isinstance(results, list) or not results:
+        return "<p>No available colors returned for this part.</p>"
+
+    rows: list[str] = []
+    for color_entry in results:
+        if not isinstance(color_entry, dict):
+            continue
+        color = color_entry.get("color") if isinstance(color_entry.get("color"), dict) else color_entry
+        color_id = _fmt(color.get("id"))
+        color_name = _fmt(color.get("name"))
+        rgb = _fmt(color.get("rgb"))
+        num_sets = _fmt(color_entry.get("num_sets"))
+        num_parts = _fmt(color_entry.get("num_parts"))
+
+        swatch = ""
+        if rgb:
+            safe_rgb = html.escape(rgb, quote=True)
+            swatch = f'<span class="color-swatch" style="background-color: #{safe_rgb};"></span>'
+
+        rows.append(
+            "<tr>"
+            f"<td>{html.escape(color_id)}</td>"
+            f"<td>{swatch}{html.escape(color_name)}</td>"
+            f"<td>{html.escape(rgb)}</td>"
+            f"<td>{html.escape(num_sets)}</td>"
+            f"<td>{html.escape(num_parts)}</td>"
+            "</tr>"
+        )
+
+    if not rows:
+        return "<p>No available colors returned for this part.</p>"
+
+    return (
+        '<h3 style="margin-top:1.5rem; margin-bottom:0.5rem;">Available colors</h3>'
+        '<table class="result-table">'
+        '<thead><tr><th>ID</th><th>Color</th><th>RGB</th><th>Sets</th><th>Parts</th></tr></thead>'
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table>"
     )
 
 
@@ -268,7 +325,12 @@ class RebrickableHandler(BaseHTTPRequestHandler):
                         {},
                         api_key,
                     )
-                    content = render_part_table(data)
+                    colors_data = fetch_path(
+                        f"lego/parts/{part_num}/colors/",
+                        {},
+                        api_key,
+                    )
+                    content = render_part_table(data, colors_data)
                 except Exception as exc:  # pragma: no cover - basic handler
                     detail = str(exc)
                     if "CERTIFICATE_VERIFY_FAILED" in detail:
