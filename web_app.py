@@ -156,6 +156,14 @@ def _fmt(value: Any) -> str:
 
 
 
+
+
+def _first_present(entry: dict[str, Any], keys: list[str]) -> Any:
+    for key in keys:
+        if key in entry and entry.get(key) not in (None, ""):
+            return entry.get(key)
+    return None
+
 def _color_field(color_entry: dict[str, Any], field: str) -> str:
     """Best-effort extraction for color fields across API payload shapes."""
     value = color_entry.get(field)
@@ -170,9 +178,9 @@ def _color_field(color_entry: dict[str, Any], field: str) -> str:
 
     # Alternate key names seen in some payloads
     aliases = {
-        "id": ["color_id"],
-        "name": ["color_name"],
-        "rgb": ["color_rgb", "rgb_hex"],
+        "id": ["color_id", "id_color", "colour_id"],
+        "name": ["color_name", "colour_name"],
+        "rgb": ["color_rgb", "rgb_hex", "hex", "colour_rgb"],
     }
     for alias in aliases.get(field, []):
         alias_val = color_entry.get(alias)
@@ -264,7 +272,7 @@ def render_part_table(part: dict[str, Any], colors_payload: dict[str, Any] | Non
             "</div>"
         )
 
-    colors_html = render_colors_table(colors_payload) if colors_payload else ""
+    colors_html = render_colors_table(part, colors_payload) if colors_payload else ""
 
     raw_json = html.escape(json.dumps(part, indent=2, sort_keys=True), quote=False)
     return (
@@ -282,23 +290,42 @@ def render_part_table(part: dict[str, Any], colors_payload: dict[str, Any] | Non
 
 
 
-def render_colors_table(colors_payload: dict[str, Any]) -> str:
+def render_colors_table(part: dict[str, Any], colors_payload: dict[str, Any]) -> str:
     results = colors_payload.get("results")
     if not isinstance(results, list) or not results:
         return "<p>No available colors returned for this part.</p>"
+
+    part_url = _fmt(part.get("part_url")).rstrip("/")
 
     rows: list[str] = []
     for color_entry in results:
         if not isinstance(color_entry, dict):
             continue
+
         color_id = _color_field(color_entry, "id")
         color_name = _color_field(color_entry, "name")
         rgb = _color_field(color_entry, "rgb")
-        num_sets = _fmt(color_entry.get("num_sets"))
-        num_parts = _fmt(color_entry.get("num_parts"))
+
+        num_sets = _fmt(
+            _first_present(
+                color_entry,
+                ["num_sets", "sets", "set_count"],
+            )
+        )
+        num_parts = _fmt(
+            _first_present(
+                color_entry,
+                ["num_parts", "parts", "part_count", "quantity", "num_set_parts"],
+            )
+        )
 
         if not color_id and not color_name and not rgb and not num_sets and not num_parts:
             continue
+
+        color_name_html = html.escape(color_name)
+        if part_url and color_id and color_name:
+            color_url = f"{part_url}/{color_id}/"
+            color_name_html = _safe_link(color_url, color_name)
 
         swatch = ""
         if rgb:
@@ -308,7 +335,7 @@ def render_colors_table(colors_payload: dict[str, Any]) -> str:
         rows.append(
             "<tr>"
             f"<td>{html.escape(color_id)}</td>"
-            f"<td>{swatch}{html.escape(color_name)}</td>"
+            f"<td>{swatch}{color_name_html}</td>"
             f"<td>{html.escape(rgb)}</td>"
             f"<td>{html.escape(num_sets)}</td>"
             f"<td>{html.escape(num_parts)}</td>"
