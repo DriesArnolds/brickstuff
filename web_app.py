@@ -154,6 +154,33 @@ def _fmt(value: Any) -> str:
 
 
 
+
+
+def _color_field(color_entry: dict[str, Any], field: str) -> str:
+    """Best-effort extraction for color fields across API payload shapes."""
+    value = color_entry.get(field)
+    if value not in (None, ""):
+        return _fmt(value)
+
+    nested = color_entry.get("color")
+    if isinstance(nested, dict):
+        nested_value = nested.get(field)
+        if nested_value not in (None, ""):
+            return _fmt(nested_value)
+
+    # Alternate key names seen in some payloads
+    aliases = {
+        "id": ["color_id"],
+        "name": ["color_name"],
+        "rgb": ["color_rgb", "rgb_hex"],
+    }
+    for alias in aliases.get(field, []):
+        alias_val = color_entry.get(alias)
+        if alias_val not in (None, ""):
+            return _fmt(alias_val)
+
+    return ""
+
 def _safe_link(url: str, label: str) -> str:
     safe_url = html.escape(url, quote=True)
     safe_label = html.escape(label)
@@ -264,12 +291,14 @@ def render_colors_table(colors_payload: dict[str, Any]) -> str:
     for color_entry in results:
         if not isinstance(color_entry, dict):
             continue
-        color = color_entry.get("color") if isinstance(color_entry.get("color"), dict) else color_entry
-        color_id = _fmt(color.get("id"))
-        color_name = _fmt(color.get("name"))
-        rgb = _fmt(color.get("rgb"))
+        color_id = _color_field(color_entry, "id")
+        color_name = _color_field(color_entry, "name")
+        rgb = _color_field(color_entry, "rgb")
         num_sets = _fmt(color_entry.get("num_sets"))
         num_parts = _fmt(color_entry.get("num_parts"))
+
+        if not color_id and not color_name and not rgb and not num_sets and not num_parts:
+            continue
 
         swatch = ""
         if rgb:
