@@ -302,6 +302,41 @@ def render_part_table(part: dict[str, Any], colors_payload: dict[str, Any] | Non
 
 
 
+
+
+def enrich_colors_with_rgb(
+    colors_payload: dict[str, Any],
+    api_key: str,
+) -> dict[str, Any]:
+    """Fill missing RGB values by querying /lego/colors/{id}/ as a fallback."""
+    results = colors_payload.get("results")
+    if not isinstance(results, list):
+        return colors_payload
+
+    rgb_cache: dict[str, str] = {}
+    for entry in results:
+        if not isinstance(entry, dict):
+            continue
+        if _color_field(entry, "rgb"):
+            continue
+
+        color_id = _color_field(entry, "id")
+        if not color_id:
+            continue
+
+        if color_id not in rgb_cache:
+            try:
+                color_data = fetch_path(f"lego/colors/{color_id}/", {}, api_key)
+                rgb_cache[color_id] = _fmt(color_data.get("rgb"))
+            except Exception:
+                rgb_cache[color_id] = ""
+
+        rgb_value = rgb_cache[color_id]
+        if rgb_value:
+            entry["rgb"] = rgb_value
+
+    return colors_payload
+
 def render_colors_table(part: dict[str, Any], colors_payload: dict[str, Any]) -> str:
     results = colors_payload.get("results")
     if not isinstance(results, list) or not results:
@@ -401,6 +436,7 @@ class RebrickableHandler(BaseHTTPRequestHandler):
                         {},
                         api_key,
                     )
+                    colors_data = enrich_colors_with_rgb(colors_data, api_key)
                     content = render_part_table(data, colors_data)
                 except Exception as exc:  # pragma: no cover - basic handler
                     detail = str(exc)
